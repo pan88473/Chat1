@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Chat Flotante</title>
+  <style>
+    /* Fondo translúcido con efecto cristal */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.45) !important;
+      backdrop-filter: blur(2px);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+
+    #header {
+      padding: 6px 10px;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #aaa;
+    }
+    #user-badge {
+      color: #4da6ff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .bubble {
+      max-width: 80%;
+      padding: 6px 10px;
+      border-radius: 12px;
+      font-size: 13px;
+      color: #fff;
+      line-height: 1.3;
+      word-wrap: break-word;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .mine {
+      align-self: flex-end;
+      background: rgba(0, 122, 255, 0.8);
+      border-bottom-right-radius: 2px;
+    }
+
+    .theirs {
+      align-self: flex-start;
+      background: rgba(60, 60, 65, 0.8);
+      border-bottom-left-radius: 2px;
+    }
+
+    #input-container {
+      display: flex;
+      padding: 6px;
+      background: rgba(0, 0, 0, 0.6);
+      gap: 6px;
+    }
+
+    input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 16px;
+      padding: 6px 12px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+    }
+    input::placeholder { color: #ccc; }
+
+    button {
+      background: #007aff;
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app">
+    <div id="header">
+      <span>Chat Flotante</span>
+      <span id="user-badge" onclick="changeUser()">👤 Cambiar</span>
+    </div>
+
+    <div id="messages"></div>
+
+    <form id="input-container" onsubmit="sendMessage(event)">
+      <input type="text" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off">
+      <button type="submit">➤</button>
+    </form>
+  </div>
+
+  <!-- Firebase Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <script>
+    // PEGA AQUÍ LOS DATOS DE TU CONSOLA DE FIREBASE:
+    const firebaseConfig = {
+      apiKey: "PEGA_TU_API_KEY",
+      authDomain: "TU_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://TU_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "TU_PROJECT_ID",
+      storageBucket: "TU_PROJECT_ID.appspot.com",
+      messagingSenderId: "TU_SENDER_ID",
+      appId: "TU_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database().ref("mensajes_privados");
+
+    // Identificador local de usuario
+    let currentUser = localStorage.getItem("chat_user");
+    if (!currentUser) {
+      currentUser = prompt("¿Quién eres? (Escribe 'yo' o 'ella')") || "yo";
+      localStorage.setItem("chat_user", currentUser);
+    }
+    document.getElementById("user-badge").textContent = `Modo: ${currentUser}`;
+
+    function changeUser() {
+      const nuevo = prompt("Escribe tu nombre ('yo' o 'ella'):");
+      if (nuevo) {
+        currentUser = nuevo;
+        localStorage.setItem("chat_user", currentUser);
+        document.getElementById("user-badge").textContent = `Modo: ${currentUser}`;
+        location.reload();
+      }
+    }
+
+    const messagesDiv = document.getElementById("messages");
+    const input = document.getElementById("msg-input");
+
+    // Escuchar mensajes entrantes
+    db.limitToLast(40).on("child_added", (snapshot) => {
+      const data = snapshot.val();
+      const bubble = document.createElement("div");
+      bubble.classList.add("bubble");
+      bubble.classList.add(data.sender === currentUser ? "mine" : "theirs");
+      bubble.textContent = data.text;
+      messagesDiv.appendChild(bubble);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+
+    // Enviar mensaje
+    function sendMessage(e) {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      db.push({
+        sender: currentUser,
+        text: text,
+        timestamp: Date.now()
+      });
+
+      input.value = "";
+    }
+  </script>
+</body>
+</html>
